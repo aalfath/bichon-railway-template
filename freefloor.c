@@ -41,7 +41,7 @@ int statvfs(const char *path, struct statvfs *buf) {
     if (!real_statvfs)
         real_statvfs = (int (*)(const char *, struct statvfs *))dlsym(RTLD_NEXT, "statvfs");
     int r = real_statvfs(path, buf);
-    if (r != 0 || plen == 0 || !path || strncmp(path, prefix, plen) != 0 ||
+    if (r != 0 || plen == 0 || strncmp(path, prefix, plen) != 0 ||
         (path[plen] != '/' && path[plen] != 0))
         return r;
     unsigned long long fr = buf->f_frsize ? buf->f_frsize : buf->f_bsize;
