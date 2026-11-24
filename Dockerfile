@@ -18,5 +18,7 @@ ENV BICHON_ROOT_DIR=/data/bichon \
     BICHON_ANSI_LOGS=false
 WORKDIR /data
 EXPOSE 15630
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -fs --max-time 4 "http://127.0.0.1:${PORT:-15630}/healthz" || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["/opt/railway/start.sh"]
