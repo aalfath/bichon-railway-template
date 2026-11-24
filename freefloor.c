@@ -6,9 +6,10 @@
  * shutdown a few seconds after start and exits 0. Railway's Free and Trial
  * plans give a 0.5 GB volume, so upstream can never start there.
  *
- * This shim wraps statvfs() for paths under BICHON_ROOT_DIR only and scales
- * that floor to 10% of the volume size (at least 64 MiB, never above
- * upstream's 1 GiB). Volumes of 10 GiB or more are left untouched.
+ * This shim wraps statvfs() for the blob store only (BICHON_DATA_DIR, else
+ * BICHON_ROOT_DIR/bichon-storage) and scales that floor to 10% of the volume
+ * size (at least 64 MiB, never above upstream's 1 GiB). Every other path, and
+ * volumes of 10 GiB or more, see the real numbers.
  *
  * It also turns off transparent huge pages for the process (Railway hosts run
  * THP "always", which inflates resident memory); set BICHON_DISABLE_THP=0 to
@@ -27,12 +28,18 @@ static size_t plen;
 
 __attribute__((constructor)) static void freefloor_init(void) {
     real_statvfs = (int (*)(const char *, struct statvfs *))dlsym(RTLD_NEXT, "statvfs");
+    const char *data = getenv("BICHON_DATA_DIR");
     const char *root = getenv("BICHON_ROOT_DIR");
-    if (root && *root && strlen(root) < sizeof(prefix)) {
+    if (data && *data && strlen(data) < sizeof(prefix) - 1) {
+        strcpy(prefix, data);
+    } else if (root && *root && strlen(root) < sizeof(prefix) - 32) {
         strcpy(prefix, root);
-        plen = strlen(prefix);
-        while (plen > 1 && prefix[plen - 1] == '/') prefix[--plen] = 0;
+        size_t n = strlen(prefix);
+        while (n > 1 && prefix[n - 1] == '/') prefix[--n] = 0;
+        strcat(prefix, "/bichon-storage");
     }
+    plen = strlen(prefix);
+    while (plen > 1 && prefix[plen - 1] == '/') prefix[--plen] = 0;
     const char *thp = getenv("BICHON_DISABLE_THP");
     if (!thp || strcmp(thp, "0") != 0) prctl(PR_SET_THP_DISABLE, 1, 0, 0, 0);
 }
